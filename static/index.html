@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>영상 챗봇</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; padding:0; font-family:Arial,sans-serif; background:#f7f7f7; }
+    #app-container { display:flex; flex-direction:row; height:100vh; }
+    #player-container { flex:0 0 640px; margin:auto 20px; display:flex; flex-direction:column; justify-content:center; }
+    #chat-container { flex:1; display:flex; flex-direction:column; margin:20px; align-items:center; }
+    #chat-messages {
+      width:100%; max-width:600px; background:#fff; border-radius:4px; padding:10px; margin-top:10px;
+      overflow-y:auto; height:400px;
+    }
+    .chat-message { margin-bottom:10px; padding:8px; border-radius:4px; }
+    .chat-message.user { background-color:#d1e7dd; align-self:flex-end; }
+    .chat-message.bot { background-color:#f8d7da; align-self:flex-start; }
+    .segment-link { color:blue; text-decoration:underline; cursor:pointer; }
+    .modify-link { color:red; text-decoration:underline; cursor:pointer; }
+    /* 모달 */
+    .modal-bg {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center;
+    }
+    .modal {
+      background:#fff; padding:20px; border-radius:4px; width:300px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-container">
+    <div id="player-container">
+      <div id="player"></div>
+    </div>
+    <div id="chat-container">
+      <div id="app">
+        <h1>영상 챗봇</h1>
+        <div id="chat-messages">
+          <div v-if="chatMessages.length === 0">
+            <p>대화 내역이 없습니다.</p>
+          </div>
+          <div v-for="(msg, idx) in chatMessages"
+               :key="idx"
+               class="chat-message"
+               :class="msg.sender"
+               v-html="msg.htmlContent">
+          </div>
+        </div>
+        <div style="margin-top:10px; display:flex; width:600px;">
+          <input v-model="chatInput" style="flex:1; padding:8px;" @keyup.enter="sendChat" placeholder="메시지를 입력하세요"/>
+          <button @click="sendChat">전송</button>
+        </div>
+
+        <!-- 모달: 수정하기 -->
+        <div v-if="showModifyModal" class="modal-bg">
+          <div class="modal">
+            <h3>세그먼트 {{ modifySegId }} 수정</h3>
+            <label>새 캡션:</label>
+            <textarea v-model="modifyText" style="width:100%; height:60px;"></textarea>
+            <div style="margin-top:10px; text-align:right;">
+              <button @click="applyModify">확인</button>
+              <button @click="closeModal">취소</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <script src="/static/main.js"></script>
+</body>
+</html>
