@@ -23,8 +23,13 @@ def get_db_connection():
 # SBERT 임베딩 모델 (검색용)
 search_model = SentenceTransformer("bongsoo/kpf-sbert-128d-v1")
 
+with open('config.json', 'r') as f:
+    config_json = json.load(f)
+    GEMINI_API_KEY = config_json["GEMINI_API_KEY"]
+    SLACK_API_KEY = config_json["SLACK_API_KEY"]
+
 # Gemini API 설정
-genai.configure(api_key="AIzaSyA0K7zgOVeUIlH2TGABbP-s-0lgLKKkrv8")
+genai.configure(api_key=GEMINI_API_KEY)
 
 @app.route("/")
 def serve_index():
@@ -117,7 +122,7 @@ def slack_interactions():
             headers = {
                 "Content-Type": "application/json; charset=utf-8",
                 # 아래에 사용자님이 주신 Bot User OAuth Token을 그대로 사용
-                "Authorization": "Bearer xoxb-8644784457382-8644972662886-XGU55oyDL8QFxD9gNczJDMXO"
+                "Authorization": f"Bearer {SLACK_API_KEY}"
             }
             response = requests.post(
                 "https://slack.com/api/views.open",
@@ -395,4 +400,4 @@ def unified_chat():
     return jsonify({"response": chat_response})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True) 
