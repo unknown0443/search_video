@@ -23,7 +23,7 @@ createApp({
         htmlContent: `<p>${this.escapeHtml(this.chatInput)}</p>`
       });
 
-      axios.post("https://027e-58-72-151-123.ngrok-free.app/chat", { message: this.chatInput })
+      axios.post(" https://5a80-58-72-151-123.ngrok-free.app/chat", { message: this.chatInput })
         .then(res => {
           const botMsg = res.data.response || "";
           // 세그먼트/수정하기 링크 치환
@@ -122,7 +122,7 @@ createApp({
         htmlContent: `<p>${this.escapeHtml(overrideCmd)}</p>`
       });
       // API 호출
-      axios.post("https://027e-58-72-151-123.ngrok-free.app/chat", { message: overrideCmd })
+      axios.post(" https://5a80-58-72-151-123.ngrok-free.app/chat", { message: overrideCmd })
         .then(res => {
           const botMsg = res.data.response || "";
           const finalMsg = `<p>${this.escapeHtml(botMsg)}</p>`;

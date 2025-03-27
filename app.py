@@ -255,7 +255,7 @@ def slack_video():
                 # 이미지 블록: 해당 세그먼트의 GIF 파일을 보여줌
                 image_block = {
                     "type": "image",
-                    "image_url": f"https://027e-58-72-151-123.ngrok-free.app/gif/output_segment_{seg_id}.gif",
+                    "image_url": f" https://5a80-58-72-151-123.ngrok-free.app/gif/output_segment_{seg_id}.gif",
                     "alt_text": f"세그먼트 {seg_id} GIF"
                 }
                 # 액션 블록: 영상 보러가기 및 수정하기 버튼
@@ -265,7 +265,7 @@ def slack_video():
                         {
                             "type": "button",
                             "text": {"type": "plain_text", "text": "영상 보러가기"},
-                            "url": f"https://027e-58-72-151-123.ngrok-free.app/video_player?t={start_time}"
+                            "url": f" https://5a80-58-72-151-123.ngrok-free.app/video_player?t={start_time}"
                         },
                         {
                             "type": "button",
