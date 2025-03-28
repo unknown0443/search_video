@@ -24,11 +24,19 @@
   - **Slack 연동**을 통한 간단 검색 및 편집 기능 공유  
   - **수정 기능**: 특정 구간(세그먼트) 자막, 멤버 정보 등을 업데이트하거나, 특정구간을 생성, 병합, 분할
 
-- **주요 시나리오**  
-  1. **YouTube 영상**을 다운로드하여 **프레임 추출**  
-  2. **Arcface**로 인물 식별, **BLIP2**로 영상 캡션 → 두 메타데이터 결합  
-  3. 결합한 결과를 DB에 저장(한글/영어 임베딩)  
-  4. 웹 또는 Slack에서 검색(“민지 웃고 있는 장면” 등) → 결과 반환  
-  5. 필요 시 “수정: 세그먼트ID=xx 내용=새 자막 멤버=Kim Minji, Danielle” 명령어로 메타데이터 수정  
+- ```mermaid
+flowchart LR
+    A[YouTube 영상] --> B[프레임 추출 (frame.py)]
+    B --> C[Arcface: 인물 식별]
+    B --> D[BLIP2/EILEV: 장면 캡션]
+    C --> E[arcface_output.json]
+    D --> F[eilev_output.json]
+    E --> G[메타데이터 결합 <br> combined_output.json]
+    F --> G
+    G --> H[SBERT 임베딩 → DB 저장]
+    H --> I[/chat (웹) <br> 또는 /slack/playvideo]
+    I --> J[Gemini LLM <br> 번역 & 요약]
+    J --> K[최종 검색 결과 표시]
+ ```  
 
 ---
