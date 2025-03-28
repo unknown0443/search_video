@@ -2,73 +2,166 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>영상 챗봇</title>
+  <title>Video Search & Edit</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <style>
-    body { margin:0; padding:0; font-family:Arial,sans-serif; background:#f7f7f7; }
-    #app-container { display:flex; flex-direction:row; height:100vh; }
-    #player-container { flex:0 0 640px; margin:auto 20px; display:flex; flex-direction:column; justify-content:center; }
-    #chat-container { flex:1; display:flex; flex-direction:column; margin:20px; align-items:center; }
+    /* 기본 스타일 초기화 */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: "Segoe UI", sans-serif; background: #f7f7f7; }
+    #app { width: 100%; height: 100vh; display: flex; flex-direction: column; }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #333; color: #fff; padding: 10px 20px; font-size: 18px;
+      position: relative;
+    }
+    .header-title { font-weight: bold; }
+    .segment-trigger { color: #fff; cursor: pointer; text-decoration: none; font-size: 16px; }
+    .segment-trigger:hover { text-decoration: underline; }
+    .segment-menu {
+      position: absolute; top: 50px; right: 20px;
+      background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px;
+      display: flex; flex-direction: column; gap: 5px; min-width: 100px; z-index: 999;
+    }
+    .segment-menu button { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 5px; cursor: pointer; }
+    .segment-menu button:hover { background: #ddd; }
+    #app-container { display: flex; flex-direction: row; flex: 1; padding: 10px; }
+    #player-container { flex: 0 0 640px; margin-right: 20px; display: flex; flex-direction: column; justify-content: flex-start; }
+    #chat-container { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    #player-container video, #player-container iframe {
+      max-width: 640px; width: 100%; border: 1px solid #ccc; border-radius: 4px;
+    }
     #chat-messages {
-      width:100%; max-width:600px; background:#fff; border-radius:4px; padding:10px; margin-top:10px;
-      overflow-y:auto; height:400px;
+      width: 100%; max-width: 600px; background: #fff; border-radius: 4px;
+      padding: 10px; margin-top: 10px; height: 400px; overflow-y: auto;
     }
-    .chat-message { margin-bottom:10px; padding:8px; border-radius:4px; }
-    .chat-message.user { background-color:#d1e7dd; align-self:flex-end; }
-    .chat-message.bot { background-color:#f8d7da; align-self:flex-start; }
-    .segment-link { color:blue; text-decoration:underline; cursor:pointer; }
-    .modify-link { color:red; text-decoration:underline; cursor:pointer; }
-    /* 모달 */
+    .chat-message { margin-bottom: 10px; padding: 8px; border-radius: 4px; max-width: 80%; line-height: 1.4; word-wrap: break-word; }
+    .chat-message.user { background-color: #d1e7dd; align-self: flex-end; }
+    .chat-message.bot { background-color: #f8d7da; align-self: flex-start; }
+    .chat-input-container { display: flex; width: 100%; max-width: 600px; margin-top: 10px; }
+    .chat-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px 0 0 4px; outline: none; }
+    .chat-send-button { background: #007bff; color: #fff; border: none; padding: 0 16px; cursor: pointer; border-radius: 0 4px 4px 0; }
+    .chat-send-button:hover { background: #0056b3; }
+    .segment-link { color: blue; text-decoration: underline; cursor: pointer; }
+    .modify-link { color: red; text-decoration: underline; cursor: pointer; }
     .modal-bg {
-      position:fixed; top:0; left:0; right:0; bottom:0;
-      background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center;
+      z-index: 1000;
     }
-    .modal {
-      background:#fff; padding:20px; border-radius:4px; width:300px;
+    .modal { background: #fff; padding: 20px; border-radius: 4px; width: 300px; }
+    .modal h3 { margin-bottom: 10px; font-size: 18px; font-weight: bold; }
+    .modal textarea { width: 100%; height: 60px; margin-top: 10px; resize: none; }
+    .modal button { margin-left: 5px; }
+    @media (max-width: 768px) {
+      #app-container { flex-direction: column; height: auto; }
+      #player-container { margin-right: 0; margin-bottom: 20px; }
     }
   </style>
 </head>
 <body>
-  <div id="app-container">
-    <div id="player-container">
-      <div id="player"></div>
-    </div>
-    <div id="chat-container">
-      <div id="app">
-        <h1>영상 챗봇</h1>
+  <div id="app">
+    <header>
+      <div class="header-title">Video Search & Edit</div>
+      <div class="segment-trigger" @click="toggleSegmentMenu">세그먼트</div>
+      <div v-if="showSegmentMenu" class="segment-menu">
+        <button @click="openMergeModal">병합</button>
+        <button @click="openSplitModal">분할</button>
+        <button @click="openCreateModal">생성</button>
+      </div>
+    </header>
+    <div id="app-container">
+      <div id="player-container">
+        <div id="player"></div>
+      </div>
+      <div id="chat-container">
         <div id="chat-messages">
           <div v-if="chatMessages.length === 0">
             <p>대화 내역이 없습니다.</p>
           </div>
-          <div v-for="(msg, idx) in chatMessages"
-               :key="idx"
-               class="chat-message"
-               :class="msg.sender"
-               v-html="msg.htmlContent">
-          </div>
+          <div v-for="(msg, idx) in chatMessages" :key="idx" class="chat-message" :class="msg.sender" v-html="msg.htmlContent"></div>
         </div>
-        <div style="margin-top:10px; display:flex; width:600px;">
-          <input v-model="chatInput" style="flex:1; padding:8px;" @keyup.enter="sendChat" placeholder="메시지를 입력하세요"/>
-          <button @click="sendChat">전송</button>
+        <div class="chat-input-container">
+          <input v-model="chatInput" class="chat-input" @keyup.enter="sendChat" placeholder="메시지를 입력하세요..." />
+          <button @click="sendChat" class="chat-send-button">전송</button>
         </div>
-
-        <!-- 모달: 수정하기 -->
+        <!-- 자막 + 멤버 수정 모달 -->
         <div v-if="showModifyModal" class="modal-bg">
           <div class="modal">
             <h3>세그먼트 {{ modifySegId }} 수정</h3>
-            <label>새 캡션:</label>
-            <textarea v-model="modifyText" style="width:100%; height:60px;"></textarea>
+            <div>
+              <label>기존 캡션:</label>
+              <p style="background:#f2f2f2; padding:5px; min-height:40px;">{{ originalCaption }}</p>
+            </div>
+            <label>새 캡션 (비어있으면 기존 유지):</label>
+            <textarea v-model="modifyText" placeholder="새 자막을 입력..."></textarea>
+            <div style="margin-top:10px;">
+              <label>멤버 목록:</label>
+              <ul>
+                <li v-for="(m, index) in updatedMembers" :key="index">
+                  {{ m }} <button @click="removeMember(m)">삭제</button>
+                </li>
+              </ul>
+              <input type="text" v-model="memberInput" placeholder="멤버 이름" style="width:120px;" />
+              <button @click="addMember">추가</button>
+            </div>
             <div style="margin-top:10px; text-align:right;">
               <button @click="applyModify">확인</button>
               <button @click="closeModal">취소</button>
             </div>
           </div>
         </div>
-
-      </div>
-    </div>
-  </div>
+        <!-- 병합 모달 -->
+        <div v-if="showMergeModal" class="modal-bg">
+          <div class="modal">
+            <h3>세그먼트 병합</h3>
+            <label>병합할 세그먼트 ID들 (쉼표 구분):</label>
+            <input v-model="mergeSegmentIds" placeholder="예: 3,4,5" style="width:100%; margin-bottom:8px;" />
+            <label>새 자막 (선택):</label>
+            <textarea v-model="mergeCaption" placeholder="병합 후 사용할 자막 (선택)"></textarea>
+            <div style="margin-top:10px; text-align:right;">
+              <button @click="submitMerge">확인</button>
+              <button @click="closeMergeModal">취소</button>
+            </div>
+          </div>
+        </div>
+        <!-- 분할 모달 -->
+        <div v-if="showSplitModal" class="modal-bg">
+          <div class="modal">
+            <h3>세그먼트 분할</h3>
+            <label>세그먼트 ID:</label>
+            <input v-model="splitSegmentId" placeholder="예: 10" style="width:100%; margin-bottom:8px;" />
+            <label>분할 시점 (초):</label>
+            <input v-model.number="splitTime" placeholder="예: 42.0" style="width:100%; margin-bottom:8px;" />
+            <label>첫 구간 자막:</label>
+            <textarea v-model="splitCaption1" placeholder="첫 구간 자막"></textarea>
+            <label>둘째 구간 자막:</label>
+            <textarea v-model="splitCaption2" placeholder="둘째 구간 자막"></textarea>
+            <div style="margin-top:10px; text-align:right;">
+              <button @click="submitSplit">확인</button>
+              <button @click="closeSplitModal">취소</button>
+            </div>
+          </div>
+        </div>
+        <!-- 생성 모달 -->
+        <div v-if="showCreateModal" class="modal-bg">
+          <div class="modal">
+            <h3>세그먼트 생성</h3>
+            <label>시작 시점 (초):</label>
+            <input v-model.number="createStart" placeholder="예: 100.0" style="width:100%; margin-bottom:8px;" />
+            <label>종료 시점 (초):</label>
+            <input v-model.number="createEnd" placeholder="예: 120.0" style="width:100%; margin-bottom:8px;" />
+            <label>자막:</label>
+            <textarea v-model="createCaption" placeholder="새로운 세그먼트 자막을 입력"></textarea>
+            <div style="margin-top:10px; text-align:right;">
+              <button @click="submitCreate">확인</button>
+              <button @click="closeCreateModal">취소</button>
+            </div>
+          </div>
+        </div>
+      </div> <!-- /#chat-container -->
+    </div>   <!-- /#app-container -->
+  </div> <!-- /#app -->
   <script src="/static/main.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
 ngrok http 5000 으로 서버실행(실행시마다 url변경)
-main.js의 axios.부분 url변경
+main.js의 axios.부분 url변경 
 app.py의 image, action block url변경
 slack api 사이트 들어가서 your apps interactivity, slash commands url변경
