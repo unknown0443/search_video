@@ -18,7 +18,7 @@
 
 - **핵심 기능**  
   - **Arcface** 기반 인물 인식 (Buffalo 모델 사용) 인물구별 학습 및 데이터생성 
-  - **BLIP2/EILEV** 모델로 영상 장면 캡션 생성    (git submodule add https://github.com/organization/EILEV.git models/EILEV)
+  - **BLIP2/EILEV** 모델로 영상 장면 캡션 생성    git submodule add https://github.com/organization/EILEV.git models/EILEV
   - **kpf-sbert-128d-v1** 모델로 한글/영어 임베딩 및 검색  
   - **Gemini LLM**(Google Generative AI)으로 검색 결과를 한국어로 번역·요약  
   - **Slack 연동**을 통한 간단 검색 및 편집 기능 공유  
