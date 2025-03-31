@@ -4,7 +4,7 @@
 
 > **Note:**  
 > - **EILEV 모델**은 Git Submodule을 통해 [https://github.com/yukw777/EILEV.git](https://github.com/yukw777/EILEV.git) 에서 관리됩니다.  
-> - **kpf-sbert-128d-v1** 모델은 [HuggingFace Model Hub](https://huggingface.co/)에서 다운로드할 수 있습니다.
+> - **kpf-sbert-128d-v1** 모델은 [[HuggingFace Model Hub](https://huggingface.co/](https://huggingface.co/bongsoo/kpf-sbert-128d-v1))에서 다운로드할 수 있습니다.
 
 ## 목차
 1. [프로젝트 개요](#프로젝트-개요)
@@ -34,10 +34,3 @@
 - **PostgreSQL:** 15 (pgvector 확장 사용 – 실행 후 `CREATE EXTENSION IF NOT EXISTS vector;` 명령어 실행)
 - **ngrok:** [ngrok 다운로드](https://ngrok.com/)
 
-### 설치 순서
-
-1. **리포지토리 클론 및 서브모듈 업데이트**
-   ```bash
-   git clone https://github.com/yourusername/yourrepo.git
-   cd yourrepo
-   git submodule update --init --recursive
