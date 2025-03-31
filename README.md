@@ -51,7 +51,7 @@
 아래 이미지는 프로젝트 전체 워크플로우를 시각화한 것입니다.
 
 <p align="center">
-  <img src="docs/images/21.png" alt="Workflow Diagram" width="600px">
+  <img src="docs/images/22.png" alt="Workflow Diagram" width="600px">
 </p>
 
 
