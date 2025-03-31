@@ -4,7 +4,7 @@
 
 > **Note:**  
 > - **EILEV 모델**은 Git Submodule을 통해 [https://github.com/yukw777/EILEV.git](https://github.com/yukw777/EILEV.git) 에서 관리됩니다.  
-> - **kpf-sbert-128d-v1** 모델은 [[HuggingFace Model Hub](https://huggingface.co/](https://huggingface.co/bongsoo/kpf-sbert-128d-v1))에서 다운로드할 수 있습니다.
+> - **kpf-sbert-128d-v1** 모델은 [HuggingFace Model Hub](https://huggingface.co/bongsoo/kpf-sbert-128d-v1)에서 다운로드할 수 있습니다.
 
 ## 목차
 1. [프로젝트 개요](#프로젝트-개요)
