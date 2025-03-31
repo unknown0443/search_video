@@ -48,39 +48,12 @@
 
 ## 워크플로우
 
-### 1. 이미지 크롤링
-- **bing(all).py**를 실행하여 이미지를 크롤링합니다.
+아래 이미지는 프로젝트 전체 워크플로우를 시각화한 것입니다.
 
-### 2. 이미지 업스케일링
-- **up.py**를 실행하여 크롤링한 이미지의 해상도를 높입니다.
+<p align="center">
+  <img src="docs/images/21.png" alt="Workflow Diagram" width="600px">
+</p>
 
-### 3. 영상 다운로드
-- **video(idol).py**와 **videosave(idol).py**를 실행하여 영상을 다운로드 받습니다.
-
-### 4. 영상 프레임 분해
-- **frame.py**를 실행하여 다운로드한 영상을 이미지(프레임)로 분해합니다.
-
-### 5. Arcface 학습
-- **kaggle/train_arcface(idol).ipynb** 노트북을 실행하여, 위의 이미지와 Kaggle 데이터셋을 학습 데이터로 사용해 인물 인식 모델(Arcface)을 학습합니다.
-
-### 6. 메타데이터 생성 (얼굴 분석)
-- 학습된 가중치 (`2best_hierarchical_arcface(c).pth`)를 이용하여 **kaggle/metadata(with arcface).ipynb** 노트북을 실행, 얼굴 분석 메타데이터를 생성합니다.
-
-### 7. 영상 캡션 생성
-- **kaggle/EILEV(video O).ipynb** 노트북을 실행하여 영상의 캡션을 생성합니다.
-
-### 8. 메타데이터 병합
-- **metadata(merge).py**를 실행하여 얼굴 분석 메타데이터와 캡션 메타데이터를 합칩니다.
-
-### 9. 임베딩 저장
-- **embedding(kpf-sbert).py**를 실행하여 합쳐진 메타데이터의 임베딩을 DB에 저장합니다.
-
-### 10. Slack 및 웹 인터페이스 설정
-- **ngrok**을 통해 public URL을 할당받고, 해당 URL을 `routes_slack.py`의 image_block 및 action_block의 URL에 반영합니다.
-- Slack 앱을 생성하고, OAuth Tokens, Interactivity, Slash Commands URL을 업데이트합니다.
-
-### 11. 최종 서버 실행
-- **python app.py**를 실행하여, Slack과 웹에서 검색 및 수정 기능을 사용할 수 있습니다.
 
 
 ## 실행 예시
