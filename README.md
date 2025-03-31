@@ -99,8 +99,8 @@
   - 멤버 구분 F1: 0.9149, mAP: 0.9570, ROC-AUC: 0.9854  
   - 학습 가중치(`2best_hierarchical_arcface(c).pth`) 사용
   <p align="center">
-  <img src="docs/images/11.png" width="200" style="margin-right:10px;" alt="Detection Example 1"/>
-  <img src="docs/images/12.png" width="200" alt="Detection Example 2"/>
+  <img src="docs/images/11.png" width="400" style="margin-right:10px;" alt="Detection Example 1"/>
+  <img src="docs/images/12.png" width="400" alt="Detection Example 2"/>
 </p>
 
 
