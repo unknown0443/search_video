@@ -98,6 +98,9 @@
   - 그룹 구분 F1: 0.8928, mAP: 0.9188, ROC-AUC: 0.9879  
   - 멤버 구분 F1: 0.9149, mAP: 0.9570, ROC-AUC: 0.9854  
   - 학습 가중치(`2best_hierarchical_arcface(c).pth`) 사용
+  - | ![디텍션 이미지 1](docs/images/11.png) | ![디텍션 이미지 2](docs/images/12.png) |
+|:--:|:--:|
+| *Detection Example 1* | *Detection Example 2* |
 
 - **EILEV 모델 (BLIP2 기반)**  
   - 영상 캡션 생성은 영어 기준으로는 우수하지만, 한국어로 번역 시 문맥이 매끄럽지 않거나, “여자를 남자로 인식”하는 등 일부 오차가 존재합니다.  
