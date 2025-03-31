@@ -34,11 +34,15 @@
 - **PostgreSQL:** 15 (pgvector 확장 사용 – 실행 후 `CREATE EXTENSION IF NOT EXISTS vector;` 명령어 실행)
 - **ngrok:** [ngrok 다운로드](https://ngrok.com/)
 
-- ### 설치 순서
+### 설치 순서
 
-1. **리포지토리 클론 및 서브모듈 업데이트**
-   ```bash
-   git clone https://github.com/yourusername/yourrepo.git
-   cd yourrepo
-   git submodule update --init --recursive
+1. **pip install -r requirments.txt**
+2. **config.json 파일 생성해 {
+    "YOUTUBE_API_KEY": "",
+    "GEMINI_API_KEY": "",
+    "SLACK_API_KEY": ""
+}
+이런식으로 키를 입력**
+3.
+
 
