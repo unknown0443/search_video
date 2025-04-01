@@ -32,7 +32,7 @@
 
 ### 필수 환경
 - **Python:** 3.10.11  
-- **PostgreSQL:** 15 (pgvector 확장 사용 – 실행 후 `CREATE EXTENSION IF NOT EXISTS vector;` 명령어 실행)
+- **PostgreSQL:**
 - **ngrok:** [ngrok 다운로드](https://ngrok.com/)
 
 ### 설치 순서
@@ -44,7 +44,7 @@
     "SLACK_API_KEY": ""
 }
 이런식으로 키를 입력**
-
+3. **embedding(kpf-sbert).py 를 실행해 메타데이터를 벡터에 저장**
 
 ## 워크플로우
 
