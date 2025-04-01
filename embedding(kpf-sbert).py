@@ -5,8 +5,8 @@ from sentence_transformers import SentenceTransformer
 # 1. 모델 로드 (Hugging Face API 사용)
 model = SentenceTransformer("bongsoo/kpf-sbert-128d-v1")
 
-# 2. 결합된 메타데이터 JSON 로드 (예: combined_metadata.json)
-json_path = "data/combined_metadata.json"  # 실제 경로에 맞게 수정
+# 2. 결합된 메타데이터 JSON 로드 (예: timeline_merged_njz.json)
+json_path = "data/timeline_merged_njz.json"  # 실제 경로에 맞게 수정
 with open(json_path, "r", encoding="utf-8") as f:
     combined_data = json.load(f)
 
