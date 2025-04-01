@@ -10,52 +10,172 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: "Segoe UI", sans-serif; background: #f7f7f7; }
     #app { width: 100%; height: 100vh; display: flex; flex-direction: column; }
+
     header {
-      display: flex; justify-content: space-between; align-items: center;
-      background: #333; color: #fff; padding: 10px 20px; font-size: 18px;
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      background: #333; 
+      color: #fff; 
+      padding: 10px 20px; 
+      font-size: 18px;
       position: relative;
     }
     .header-title { font-weight: bold; }
-    .segment-trigger { color: #fff; cursor: pointer; text-decoration: none; font-size: 16px; }
+    .segment-trigger {
+      color: #fff; 
+      cursor: pointer; 
+      text-decoration: none; 
+      font-size: 16px; 
+      margin-left: auto; /* 오른쪽 정렬 느낌 */
+    }
     .segment-trigger:hover { text-decoration: underline; }
     .segment-menu {
-      position: absolute; top: 50px; right: 20px;
-      background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px;
-      display: flex; flex-direction: column; gap: 5px; min-width: 100px; z-index: 999;
+      position: absolute; 
+      top: 50px; 
+      right: 20px;
+      background: #fff; 
+      border: 1px solid #ccc; 
+      border-radius: 4px; 
+      padding: 10px;
+      display: flex; 
+      flex-direction: column; 
+      gap: 5px; 
+      min-width: 100px; 
+      z-index: 999;
     }
-    .segment-menu button { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 5px; cursor: pointer; }
+    .segment-menu button {
+      background: #eee; 
+      border: 1px solid #ccc; 
+      border-radius: 4px; 
+      padding: 5px; 
+      cursor: pointer;
+    }
     .segment-menu button:hover { background: #ddd; }
-    #app-container { display: flex; flex-direction: row; flex: 1; padding: 10px; }
-    #player-container { flex: 0 0 640px; margin-right: 20px; display: flex; flex-direction: column; justify-content: flex-start; }
-    #chat-container { flex: 1; display: flex; flex-direction: column; align-items: center; }
+
+    #app-container { 
+      display: flex; 
+      flex-direction: row; 
+      flex: 1; 
+      padding: 10px; 
+    }
+    #player-container { 
+      flex: 0 0 640px; 
+      margin-right: 20px; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: flex-start; 
+    }
+    #chat-container { 
+      flex: 1; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+    }
     #player-container video, #player-container iframe {
-      max-width: 640px; width: 100%; border: 1px solid #ccc; border-radius: 4px;
+      max-width: 640px; 
+      width: 100%; 
+      border: 1px solid #ccc; 
+      border-radius: 4px;
     }
     #chat-messages {
-      width: 100%; max-width: 600px; background: #fff; border-radius: 4px;
-      padding: 10px; margin-top: 10px; height: 400px; overflow-y: auto;
+      width: 100%; 
+      max-width: 600px; 
+      background: #fff; 
+      border-radius: 4px;
+      padding: 10px; 
+      margin-top: 10px; 
+      height: 400px; 
+      overflow-y: auto;
     }
-    .chat-message { margin-bottom: 10px; padding: 8px; border-radius: 4px; max-width: 80%; line-height: 1.4; word-wrap: break-word; }
+    .chat-message { 
+      margin-bottom: 10px; 
+      padding: 8px; 
+      border-radius: 4px; 
+      max-width: 80%; 
+      line-height: 1.4; 
+      word-wrap: break-word;
+    }
     .chat-message.user { background-color: #d1e7dd; align-self: flex-end; }
     .chat-message.bot { background-color: #f8d7da; align-self: flex-start; }
-    .chat-input-container { display: flex; width: 100%; max-width: 600px; margin-top: 10px; }
-    .chat-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px 0 0 4px; outline: none; }
-    .chat-send-button { background: #007bff; color: #fff; border: none; padding: 0 16px; cursor: pointer; border-radius: 0 4px 4px 0; }
+    .chat-input-container { 
+      display: flex; 
+      width: 100%; 
+      max-width: 600px; 
+      margin-top: 10px;
+    }
+    .chat-input {
+      flex: 1; 
+      padding: 8px; 
+      border: 1px solid #ccc; 
+      border-radius: 4px 0 0 4px; 
+      outline: none;
+    }
+    .chat-send-button {
+      background: #007bff; 
+      color: #fff; 
+      border: none; 
+      padding: 0 16px; 
+      cursor: pointer; 
+      border-radius: 0 4px 4px 0;
+    }
     .chat-send-button:hover { background: #0056b3; }
     .segment-link { color: blue; text-decoration: underline; cursor: pointer; }
     .modify-link { color: red; text-decoration: underline; cursor: pointer; }
     .modal-bg {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center;
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      bottom: 0;
+      background: rgba(0,0,0,0.5); 
+      display: flex; 
+      justify-content: center; 
+      align-items: center;
       z-index: 1000;
     }
-    .modal { background: #fff; padding: 20px; border-radius: 4px; width: 300px; }
-    .modal h3 { margin-bottom: 10px; font-size: 18px; font-weight: bold; }
-    .modal textarea { width: 100%; height: 60px; margin-top: 10px; resize: none; }
+    .modal {
+      background: #fff; 
+      padding: 20px; 
+      border-radius: 4px; 
+      width: 300px;
+    }
+    .modal h3 { 
+      margin-bottom: 10px; 
+      font-size: 18px; 
+      font-weight: bold; 
+    }
+    .modal textarea { 
+      width: 100%; 
+      height: 60px; 
+      margin-top: 10px; 
+      resize: none;
+    }
     .modal button { margin-left: 5px; }
     @media (max-width: 768px) {
       #app-container { flex-direction: column; height: auto; }
       #player-container { margin-right: 0; margin-bottom: 20px; }
+    }
+
+    /* 추가: 채팅 모드 컨테이너 */
+    .chat-mode-container {
+      margin-top: 10px;
+      width: 100%; 
+      max-width: 600px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+    }
+    .chat-mode-container button {
+      background: #ccc; 
+      border: none; 
+      padding: 6px 12px; 
+      border-radius: 4px; 
+      cursor: pointer;
+    }
+    .chat-mode-container button:disabled {
+      background: #999;
+      cursor: default;
     }
   </style>
 </head>
@@ -75,16 +195,48 @@
         <div id="player"></div>
       </div>
       <div id="chat-container">
+
+        <!-- 채팅 메시지 영역 -->
         <div id="chat-messages">
           <div v-if="chatMessages.length === 0">
             <p>대화 내역이 없습니다.</p>
           </div>
-          <div v-for="(msg, idx) in chatMessages" :key="idx" class="chat-message" :class="msg.sender" v-html="msg.htmlContent"></div>
+          <div 
+            v-for="(msg, idx) in chatMessages" 
+            :key="idx" 
+            class="chat-message" 
+            :class="msg.sender" 
+            v-html="msg.htmlContent"
+          ></div>
         </div>
+
+        <!-- 채팅 입력창 -->
         <div class="chat-input-container">
-          <input v-model="chatInput" class="chat-input" @keyup.enter="sendChat" placeholder="메시지를 입력하세요..." />
+          <input 
+            v-model="chatInput" 
+            class="chat-input" 
+            @keyup.enter="sendChat" 
+            placeholder="메시지를 입력하세요..."
+          />
           <button @click="sendChat" class="chat-send-button">전송</button>
         </div>
+
+        <!-- 모드 전환 버튼: 채팅창 바로 아래 -->
+        <div class="chat-mode-container">
+          <button 
+            @click="setChatMode('search')" 
+            :disabled="chatMode === 'search'"
+          >
+            영상검색 모드
+          </button>
+          <button 
+            @click="setChatMode('question')" 
+            :disabled="chatMode === 'question'"
+          >
+            질문 모드
+          </button>
+        </div>
+
         <!-- 자막 + 멤버 수정 모달 -->
         <div v-if="showModifyModal" class="modal-bg">
           <div class="modal">
@@ -111,6 +263,7 @@
             </div>
           </div>
         </div>
+
         <!-- 병합 모달 -->
         <div v-if="showMergeModal" class="modal-bg">
           <div class="modal">
@@ -125,6 +278,7 @@
             </div>
           </div>
         </div>
+
         <!-- 분할 모달 -->
         <div v-if="showSplitModal" class="modal-bg">
           <div class="modal">
@@ -143,6 +297,7 @@
             </div>
           </div>
         </div>
+
         <!-- 생성 모달 -->
         <div v-if="showCreateModal" class="modal-bg">
           <div class="modal">
@@ -159,6 +314,7 @@
             </div>
           </div>
         </div>
+
       </div> <!-- /#chat-container -->
     </div>   <!-- /#app-container -->
   </div> <!-- /#app -->

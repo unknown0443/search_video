@@ -40,17 +40,38 @@ createApp({
       createCaption: "",
 
       // "세그먼트" 메뉴 토글
-      showSegmentMenu: false
+      showSegmentMenu: false,
+
+      // 추가: 채팅 모드 (기본은 영상검색 모드)
+      // "search": 영상검색 모드, "question": 질문 모드
+      chatMode: "search"
     };
   },
   methods: {
-    // 1) 채팅 전송
+    // 채팅 모드 전환 함수
+    setChatMode(mode) {
+      this.chatMode = mode;
+      if(mode === "question") {
+        this.chatInput = "질문: ";
+      } else {
+        this.chatInput = "";
+      }
+    },
+
+    // 채팅 전송 (질문 모드인 경우 접두어 추가)
     sendChat() {
       if (!this.chatInput.trim()) return;
+    
+      // 질문 모드라면 "질문:" 접두어가 없을 때만 추가
+      if (this.chatMode === "question" && !this.chatInput.startsWith("질문:")) {
+        this.chatInput = "질문: " + this.chatInput;
+      }
+    
       this.chatMessages.push({
         sender: "user",
         htmlContent: `<p>${this.escapeHtml(this.chatInput)}</p>`
       });
+    
       axios.post("/chat", { message: this.chatInput })
         .then(res => {
           const botMsg = res.data.response || "";
@@ -77,10 +98,14 @@ createApp({
             htmlContent: "<p>챗봇 응답 중 오류가 발생했습니다.</p>"
           });
         });
+    
+      // 모드를 search로 되돌리지 않음!
+      // this.chatMode = "search";  // 제거
+    
       this.chatInput = "";
     },
 
-    // 2) 링크 변환
+    // 기존 검색 결과 내 링크 변환
     transformLinks(text) {
       const reSeg = /\[세그먼트ID=(\d+)\s+start=(\d+(?:\.\d+)?)\]/g;
       let replaced = text.replace(reSeg, (match, segid, start) => {
@@ -90,13 +115,12 @@ createApp({
       replaced = replaced.replace(reMod, (match, segid) => {
         return `
           <span class="modify-link" data-segid="${segid}" style="color:red; text-decoration:underline; cursor:pointer;">수정하기</span>
-          
-          `;
+        `;
       });
       return replaced;
     },
 
-    // 3) HTML 이스케이프
+    // HTML 이스케이프 함수
     escapeHtml(str) {
       return str.replace(/[<>&"]/g, c => {
         switch (c) {
@@ -108,7 +132,7 @@ createApp({
       });
     },
 
-    // 4) 비디오 플레이어 초기화
+    // 비디오 플레이어 초기화
     initVideoPlayer() {
       const container = document.getElementById("player");
       container.innerHTML = "";
@@ -121,7 +145,7 @@ createApp({
       this.player = videoEl;
     },
 
-    // 5) 세그먼트 클릭: 영상 이동
+    // 세그먼트 클릭: 영상 이동
     handleSegmentClick(segid, start) {
       const startTime = parseFloat(start) || 0;
       if (this.player) {
@@ -130,7 +154,7 @@ createApp({
       }
     },
 
-    // 6) 수정 모달 열기: 기존 캡션/멤버 불러오기
+    // 수정 모달 열기: 기존 캡션/멤버 불러오기
     handleModifyClick(segid) {
       this.modifySegId = segid;
       axios.get(`/segment/${segid}`)
@@ -160,12 +184,12 @@ createApp({
         });
     },
 
-    // 모달 닫기
+    // 수정 모달 닫기
     closeModal() {
       this.showModifyModal = false;
     },
 
-    // 7) 수정 모달 '확인' 버튼: 수정 명령 전송
+    // 수정 모달 '확인' 버튼: 수정 명령 전송
     applyModify() {
       const newCaption = this.modifyText.trim() || this.originalCaption;
       const membersString = this.updatedMembers.join(",");
@@ -193,7 +217,7 @@ createApp({
       this.showModifyModal = false;
     },
 
-    // 8) 멤버 추가/삭제
+    // 멤버 추가/삭제
     addMember() {
       const newMember = this.memberInput.trim();
       if (newMember && !this.updatedMembers.includes(newMember)) {
@@ -205,7 +229,7 @@ createApp({
       this.updatedMembers = this.updatedMembers.filter(x => x !== m);
     },
 
-    // 9) 병합 모달
+    // 병합 모달
     openMergeModal() {
       this.mergeSegmentIds = "";
       this.mergeCaption = "";
@@ -233,7 +257,7 @@ createApp({
       });
     },
 
-    // 10) 분할 모달
+    // 분할 모달
     openSplitModal() {
       this.splitSegmentId = "";
       this.splitTime = null;
@@ -261,7 +285,7 @@ createApp({
       });
     },
 
-    // 11) 생성 모달
+    // 생성 모달
     openCreateModal() {
       this.createStart = null;
       this.createEnd = null;
@@ -289,7 +313,7 @@ createApp({
       });
     },
 
-    // 12) "세그먼트" 메뉴 토글
+    // "세그먼트" 메뉴 토글
     toggleSegmentMenu() {
       this.showSegmentMenu = !this.showSegmentMenu;
     }
