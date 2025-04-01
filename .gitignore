@@ -11,3 +11,4 @@ __pycache__
 EILEVV
 config.json
 venv
+*.bat
