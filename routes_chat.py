@@ -1,4 +1,3 @@
-# routes_chat.py
 from flask import Blueprint, request, jsonify
 import json
 import re
@@ -16,16 +15,16 @@ def unified_chat():
     if not user_msg:
         return jsonify({"error": "No message provided"}), 400
 
-    # -------------------------
-    # 1) "수정:" 명령어 처리
-    # -------------------------
+    # ----------------------------------
+    # 1) 수정 명령 ("수정:" 모드)
+    # ----------------------------------
     override_pattern = r'^수정:\s*세그먼트ID=(\d+)\s*내용=(.*?)(?:\s+멤버=(.*))?$'
     if user_msg.startswith("수정:"):
         match = re.match(override_pattern, user_msg)
         if match:
             seg_id_str = match.group(1)
             override_text = match.group(2).strip()
-            members_text = match.group(3)  # 선택적으로 있을 수 있음
+            members_text = match.group(3)
 
             try:
                 seg_id = int(seg_id_str)
@@ -35,7 +34,6 @@ def unified_chat():
             if not seg_id or not override_text:
                 return jsonify({"response": "교정 명령 구문이 잘못되었습니다."})
 
-            # (1) 수정 전 데이터 조회
             conn = get_db_connection()
             cur = conn.cursor()
             select_sql = """
@@ -60,14 +58,12 @@ def unified_chat():
                 except:
                     old_faces = []
 
-            # (2) 새 faces 만들기
             if members_text:
                 members_list = [m.strip() for m in members_text.split(",") if m.strip()]
                 new_faces = json.dumps([{"member": m} for m in members_list])
             else:
                 new_faces = json.dumps([])
 
-            # (3) DB 업데이트
             new_emb = search_model.encode(override_text)
             new_emb_str = str(new_emb.tolist())
             if members_text:
@@ -88,7 +84,6 @@ def unified_chat():
                 """
                 cur.execute(update_sql, (override_text, new_emb_str, seg_id))
 
-            # (4) 히스토리 기록
             hist_sql = """
             INSERT INTO njz_segment_operations_history
             (operation_type, segment_ids_before, segment_ids_after,
@@ -114,16 +109,14 @@ def unified_chat():
         else:
             return jsonify({"response": "수정 명령 형식이 올바르지 않습니다."})
 
-    # -------------------------
-    # 2) "질문:" 모드 처리
-    # -------------------------
+    # ----------------------------------
+    # 2) 질문 ("질문:" 모드)
+    # ----------------------------------
     elif user_msg.startswith("질문:"):
         question = user_msg[len("질문:"):].strip()
 
-        # (1) DB에서 전체 세그먼트(또는 원하는 범위) 조회
         conn = get_db_connection()
         cur = conn.cursor()
-        # 모든 세그먼트 또는 조건부로 특정 영상만
         sql = """
         SELECT id, start_time, end_time, caption, manual_caption, faces
         FROM njz_segments
@@ -134,33 +127,76 @@ def unified_chat():
         cur.close()
         conn.close()
 
-        # (2) DB에서 가져온 세그먼트 정보 -> LLM에게 전달할 텍스트로 변환
-        # 예: [세그먼트ID=101, start=60, end=65, 캡션="민지가 웃고 있다."]
-        all_segments_text = ""
+        grouped_segments = []
+        current_group = []
+        THRESHOLD = 1.0  # 1초 임계값
+
         for row in rows:
             seg_id = row[0]
-            start_sec = row[1]
-            end_sec = row[2]
+            start_time = row[1]
+            end_time = row[2]
             auto_cap = row[3] or ""
             manual_cap = row[4] or ""
             faces_json = row[5] or "[]"
-
             final_cap = manual_cap.strip() if manual_cap.strip() else auto_cap
-            # 멤버들
-            try:
-                faces_data = json.loads(faces_json) if isinstance(faces_json, str) else faces_json
-            except:
-                faces_data = []
+
+            if isinstance(faces_json, str):
+                try:
+                    faces_data = json.loads(faces_json)
+                except:
+                    faces_data = []
+            else:
+                faces_data = faces_json
+
             members = [f["member"] for f in faces_data if "member" in f]
-            members_str = ", ".join(members) if members else "없음"
+            seg_info = {
+                "id": seg_id,
+                "start": start_time,
+                "end": end_time,
+                "cap": final_cap,
+                "members": members,
+            }
 
-            start_hms = format_hhmmss(start_sec)
-            end_hms = format_hhmmss(end_sec)
-            all_segments_text += (
-                f"[세그먼트ID={seg_id}, start={start_hms}, end={end_hms}, 멤버={members_str}, 캡션=\"{final_cap}\"]\n"
-            )
+            if not current_group:
+                current_group.append(seg_info)
+            else:
+                last = current_group[-1]
+                time_gap = seg_info["start"] - last["end"]
+                # 시간 gap이 THRESHOLD 이하면 그룹화 (캡션은 단순 결합)
+                if time_gap <= THRESHOLD:
+                    # 기존 캡션과 다르더라도 "/"로 결합 (추후 중요정보 추출 로직 추가 가능)
+                    current_group[-1]["cap"] = f"{current_group[-1]['cap']} / {seg_info['cap']}"
+                    # 멤버도 합치기
+                    current_group[-1]["members"] = list(set(current_group[-1]["members"] + seg_info["members"]))
+                    # 그룹의 종료 시간 업데이트
+                    current_group[-1]["end"] = seg_info["end"]
+                    # 그룹에 새로운 세그먼트 ID도 추가
+                    current_group[-1]["ids"] = current_group[-1].get("ids", [last["id"]]) + [seg_info["id"]]
+                else:
+                    grouped_segments.append(current_group)
+                    current_group = [seg_info]
 
-        # (3) 질문 모드 프롬프트 구성
+        if current_group:
+            grouped_segments.append(current_group)
+
+        all_segments_text = ""
+        for group in grouped_segments:
+            if "ids" in group[0]:
+                ids = group[0]["ids"]
+            else:
+                ids = [group[0]["id"]]
+            start_hms = format_hhmmss(group[0]["start"])
+            end_hms = format_hhmmss(group[-1]["end"])
+            caption = group[0]["cap"]
+            members = sorted({m for seg in group for m in seg["members"]})
+            member_str = ", ".join(members) if members else "없음"
+
+            if len(ids) == 1:
+                seg_line = f"[세그먼트ID={ids[0]}, start_sec={group[0]['start']}, end_sec={group[-1]['end']}]\n{start_hms} ~ {end_hms}\n캡션: \"{caption}\"\n등장인물: {member_str}\n"
+            else:
+                seg_line = f"[세그먼트ID={ids[0]}~{ids[-1]}, start_sec={group[0]['start']}, end_sec={group[-1]['end']}]\n{start_hms} ~ {end_hms}\n캡션: \"{caption}\"\n등장인물: {member_str}\n"
+            all_segments_text += seg_line + "\n"  # 문단 구분을 위해 빈 줄 추가
+
         prompt = f"""
 아래는 영상의 세그먼트 정보 목록입니다:
 {all_segments_text}
@@ -169,8 +205,7 @@ def unified_chat():
 
 위 세그먼트 정보를 활용하여, 질문에 대해 구체적으로 답변해 주세요.
 예) "민지가 나오는 모든 장면을 알려줘"라면, 각 세그먼트ID와 시간 정보를 나열해 주세요.
-세그먼트ID가 2, 3, 4 이런식으로 연속적이라면 답을 세그먼트ID(2~4) 시간(세그먼트ID2의 시작시간 ~ 세그먼트ID4의 끝나는시간)이런식으로 표기해줘.
-세그먼트ID가 계속 붙어있다면 붙어있는 부분까지 다 묶어주고 세그먼트 시작시간과 끝나는 시간은 start_sec, end_sec을 참고해서 시간만 대답해줘.
+세그먼트ID가 연속적이라면 예를 들어 세그먼트ID(2~4)와 시간(세그먼트ID2의 시작시간 ~ 세그먼트ID4의 끝나는시간)으로 표기해 주세요.
 """
         try:
             gemini_model = GenerativeModel("models/gemini-2.0-flash")
@@ -189,9 +224,9 @@ def unified_chat():
 
         return jsonify({"response": chat_response})
 
-    # -------------------------
-    # 3) 기본 영상 검색 로직
-    # -------------------------
+    # ----------------------------------
+    # 3) 기본 검색 로직 (우선순위 및 그룹화 적용)
+    # ----------------------------------
     else:
         user_emb = search_model.encode(user_msg)
         user_emb_str = str(user_emb.tolist())
@@ -205,52 +240,96 @@ def unified_chat():
             embedding <=> %s AS distance
         FROM njz_segments
         ORDER BY embedding <=> %s
-        LIMIT 3;
+        LIMIT 10;
         """
         cur.execute(sql, (user_emb_str, user_emb_str))
         rows = cur.fetchall()
         cur.close()
         conn.close()
 
-        if not rows:
+        segments = []
+        for row in rows:
+            seg_id = row[0]
+            video_id = row[1]
+            start_time = row[2]
+            end_time = row[3]
+            auto_cap = row[4] or ""
+            manual_cap = row[5] or ""
+            faces = row[6] or []
+            dist = row[7]
+            final_cap = manual_cap.strip() if manual_cap.strip() else auto_cap
+
+            if isinstance(faces, str):
+                try:
+                    faces = json.loads(faces)
+                except:
+                    faces = []
+            members = [f["member"] for f in faces if "member" in f]
+            priority = 1 if members else (2 if manual_cap.strip() else 3)
+
+            segments.append({
+                "id": seg_id,
+                "video_id": video_id,
+                "start": start_time,
+                "end": end_time,
+                "cap": final_cap,
+                "members": sorted(set(members)),
+                "dist": dist,
+                "priority": priority
+            })
+
+        segments = sorted(segments, key=lambda s: (s["priority"], s["dist"]))
+
+        groups = {}
+        for seg in segments:
+            key = (seg["video_id"], seg["cap"])
+            if key not in groups:
+                groups[key] = {
+                    "ids": [seg["id"]],
+                    "start": seg["start"],
+                    "end": seg["end"],
+                    "cap": seg["cap"],
+                    "members": set(seg["members"]),
+                    "dist": seg["dist"]
+                }
+            else:
+                groups[key]["ids"].append(seg["id"])
+                groups[key]["start"] = min(groups[key]["start"], seg["start"])
+                groups[key]["end"] = max(groups[key]["end"], seg["end"])
+                groups[key]["members"].update(seg["members"])
+                groups[key]["dist"] = min(groups[key]["dist"], seg["dist"])
+
+        grouped_list = []
+        for (video_id, cap), group in groups.items():
+            id_range = f"{group['ids'][0]}" if len(group["ids"]) == 1 else f"{group['ids'][0]}~{group['ids'][-1]}"
+            grouped_list.append({
+                "id_range": id_range,
+                "start": group["start"],
+                "end": group["end"],
+                "cap": group["cap"],
+                "members": sorted(list(group["members"])),
+                "dist": group["dist"]
+            })
+
+        grouped_list = sorted(grouped_list, key=lambda g: g["dist"])
+
+        if not grouped_list:
             relevant_info = "DB에서 검색 결과가 없습니다.\n"
         else:
             relevant_info = ""
-            for row in rows:
-                seg_id      = row[0]
-                start_sec   = row[2]
-                end_sec     = row[3]
-                auto_cap    = row[4] or ""
-                manual_cap  = row[5] or ""
-                faces_list  = row[6] or "[]"
-                dist        = row[7]
-
-                final_cap = manual_cap.strip() if manual_cap.strip() else auto_cap
-                start_hms = format_hhmmss(start_sec)
-                end_hms   = format_hhmmss(end_sec)
-                time_slot = f"{start_hms} ~ {end_hms}"
-
-                members_set = set()
-                try:
-                    # faces_list가 str일 수 있으니 파싱
-                    if isinstance(faces_list, str):
-                        faces_list = json.loads(faces_list)
-                    for f in faces_list:
-                        if "member" in f:
-                            members_set.add(f["member"])
-                except Exception as err:
-                    print('Error', err)
-                    pass
-                if members_set:
-                    face_line = "등장인물: " + ", ".join(sorted(members_set))
-                else:
-                    face_line = "등장인물: 없음"
-
+            for group in grouped_list:
+                start_hms = format_hhmmss(group["start"])
+                end_hms = format_hhmmss(group["end"])
+                cap = group["cap"]
+                members = group["members"]
+                face_line = "등장인물: " + ", ".join(members) if members else "등장인물: 없음"
+                id_range = group["id_range"]
                 relevant_info += (
-                    f"[세그먼트ID={seg_id} start={start_sec}]\n"
-                    f"{time_slot}: \"{final_cap}\"\n"
+                    f"[세그먼트ID={id_range} (start_sec={group['start']}, end_sec={group['end']})]\n"
+                    f"{start_hms} ~ {end_hms}\n"
+                    f"캡션: \"{cap}\"\n"
                     f"{face_line}\n"
-                    f"(dist={dist:.2f}) [수정하기={seg_id}]\n\n"
+                    f"(dist={group['dist']:.2f}) [수정하기={id_range}]\n\n"
                 )
 
         prompt = f"""
@@ -260,13 +339,13 @@ Context:
 사용자 입력: "{user_msg}"
 
 중요:
-- 세그먼트 정보(세그먼트ID, start, (dist=...), [수정하기=xx])는 그대로 유지.
+- 세그먼트 정보(세그먼트ID, start_sec, end_sec, (dist=...), [수정하기=xx])는 그대로 유지.
 - 등장인물 정보가 영어라면 한국어로 출력.
-- 각 세그먼트의 설명은 combined_caption (존재 시) 또는 captions 배열의 설명을 바탕으로 자연스러운 한국어 해석으로 작성.
+- 각 세그먼트의 설명은 combined_caption(존재 시) 또는 captions 배열의 설명을 바탕으로 자연스러운 한국어 해석으로 작성.
   (예: Gang Harin → 강해린, Kim Minji → 김민지, Pham Hanni → 팜하니, Danielle → 다니엘)
 
 요청:
-영어 캡션과 멤버 이름을 한국어로 번역하여, "검색어와 가장 유사한 3개의 장면입니다."와 같이 요약해 주세요.
+영어 캡션과 멤버 이름을 한국어로 번역하여, "검색어와 가장 유사한 장면입니다."와 같이 요약해 주세요.
 """
         try:
             gemini_model = GenerativeModel("models/gemini-2.0-flash")
@@ -284,3 +363,65 @@ Context:
             chat_response = "오류가 발생했습니다."
 
         return jsonify({"response": chat_response})
+
+# ----------------------------------
+# 그룹 수정 API
+# ----------------------------------
+@chat_bp.route("/segment/group_modify", methods=["POST"])
+def group_modify():
+    data = request.get_json()
+    segment_ids = data.get("segment_ids")
+    new_caption = data.get("new_caption", "").strip()
+    new_members = data.get("new_members", [])
+    if not segment_ids or not new_caption:
+        return jsonify({"success": False, "message": "세그먼트 ID와 새 캡션이 필요합니다."}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    old_caps = []
+    old_faces_list = []
+    for seg_id in segment_ids:
+        cur.execute("SELECT caption, manual_caption, faces FROM njz_segments WHERE id = %s", (seg_id,))
+        row = cur.fetchone()
+        if not row:
+            continue
+        old_auto_cap = row[0] or ""
+        old_manual_cap = row[1] or ""
+        old_faces = row[2] or "[]"
+        old_final_cap = old_manual_cap.strip() if old_manual_cap.strip() else old_auto_cap
+        if isinstance(old_faces, str):
+            try:
+                old_faces = json.loads(old_faces)
+            except:
+                old_faces = []
+        old_caps.append(old_final_cap)
+        old_faces_list.append(old_faces)
+        new_emb = search_model.encode(new_caption)
+        new_emb_str = str(new_emb.tolist())
+        if new_members:
+            new_faces = json.dumps([{"member": m} for m in new_members])
+            cur.execute("UPDATE njz_segments SET manual_caption=%s, embedding=%s, faces=%s WHERE id=%s",
+                        (new_caption, new_emb_str, new_faces, seg_id))
+        else:
+            cur.execute("UPDATE njz_segments SET manual_caption=%s, embedding=%s WHERE id=%s",
+                        (new_caption, new_emb_str, seg_id))
+    hist_sql = """
+    INSERT INTO njz_segment_operations_history 
+    (operation_type, segment_ids_before, segment_ids_after, old_captions, new_captions, old_faces, new_faces, created_by)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+    """
+    new_faces_val = json.dumps([{"member": m} for m in new_members]) if new_members else json.dumps([])
+    cur.execute(hist_sql, (
+        "group_update",
+        json.dumps(segment_ids),
+        json.dumps(segment_ids),
+        json.dumps(old_caps),
+        json.dumps([new_caption] * len(segment_ids)),
+        json.dumps(old_faces_list),
+        json.dumps(json.loads(new_faces_val)),
+        "local_user"
+    ))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"success": True, "message": "그룹 수정이 완료되었습니다."})

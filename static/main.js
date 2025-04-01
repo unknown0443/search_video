@@ -8,18 +8,23 @@ createApp({
       chatMessages: [],
       player: null,
 
-      // 자막 수정 모달
+      // 단일 세그먼트 수정 모달
       showModifyModal: false,
       modifySegId: null,
-
-      // 기존 캡션 / 멤버
       originalCaption: "",
       originalMembers: [],
-
-      // 새 캡션 / 수정 멤버
       modifyText: "",
       updatedMembers: [],
       memberInput: "",
+
+      // 그룹 수정 모달 (여러 세그먼트)
+      showGroupModifyModal: false,
+      groupModifySegIds: "",  // 예: "146~148"
+      groupOriginalCaption: "",
+      groupModifyText: "",
+      groupOriginalMembers: [],
+      groupUpdatedMembers: [],
+      groupMemberInput: "",
 
       // 병합 모달
       showMergeModal: false,
@@ -42,8 +47,7 @@ createApp({
       // "세그먼트" 메뉴 토글
       showSegmentMenu: false,
 
-      // 추가: 채팅 모드 (기본은 영상검색 모드)
-      // "search": 영상검색 모드, "question": 질문 모드
+      // 채팅 모드 (기본은 영상검색 모드)
       chatMode: "search"
     };
   },
@@ -51,7 +55,7 @@ createApp({
     // 채팅 모드 전환 함수
     setChatMode(mode) {
       this.chatMode = mode;
-      if(mode === "question") {
+      if (mode === "question") {
         this.chatInput = "질문: ";
       } else {
         this.chatInput = "";
@@ -61,30 +65,23 @@ createApp({
     // 채팅 전송 (질문 모드인 경우 접두어 추가)
     sendChat() {
       if (!this.chatInput.trim()) return;
-    
-      // 질문 모드라면 "질문:" 접두어가 없을 때만 추가
+
       if (this.chatMode === "question" && !this.chatInput.startsWith("질문:")) {
         this.chatInput = "질문: " + this.chatInput;
       }
-    
+
       this.chatMessages.push({
         sender: "user",
         htmlContent: `<p>${this.escapeHtml(this.chatInput)}</p>`
       });
-    
+
       axios.post("/chat", { message: this.chatInput })
         .then(res => {
           const botMsg = res.data.response || "";
           const transformed = this.transformLinks(botMsg);
-          const splitted = transformed.split(/(?=<span[^>]*class="segment-link")/g);
-          splitted.forEach(part => {
-            part = part.trim();
-            if (part) {
-              this.chatMessages.push({
-                sender: "bot",
-                htmlContent: part
-              });
-            }
+          this.chatMessages.push({
+            sender: "bot",
+            htmlContent: transformed
           });
           this.$nextTick(() => {
             const container = document.getElementById("chat-messages");
@@ -98,29 +95,23 @@ createApp({
             htmlContent: "<p>챗봇 응답 중 오류가 발생했습니다.</p>"
           });
         });
-    
-      // 모드를 search로 되돌리지 않음!
-      // this.chatMode = "search";  // 제거
-    
       this.chatInput = "";
     },
 
-    // 기존 검색 결과 내 링크 변환
+    // 링크 변환: 새 포맷 [세그먼트ID=146~148 (start_sec=145.0, end_sec=148.0)]
     transformLinks(text) {
-      const reSeg = /\[세그먼트ID=(\d+)\s+start=(\d+(?:\.\d+)?)\]/g;
-      let replaced = text.replace(reSeg, (match, segid, start) => {
-        return `<span class="segment-link" data-segid="${segid}" data-start="${start}">[세그먼트 ${segid}]</span>`;
+      const reSeg = /\[세그먼트ID=([\d~]+)\s+\(start_sec=(\d+(?:\.\d+)?),\s*end_sec=(\d+(?:\.\d+)?)\)\]/g;
+      let replaced = text.replace(reSeg, (match, segid, startSec, endSec) => {
+        return `<span class="segment-link" data-segid="${segid}" data-start="${startSec}">[세그먼트 ${segid}]</span>`;
       });
-      const reMod = /\[수정하기=(\d+)\]/g;
+      const reMod = /\[수정하기=([\d~]+)\]/g;
       replaced = replaced.replace(reMod, (match, segid) => {
-        return `
-          <span class="modify-link" data-segid="${segid}" style="color:red; text-decoration:underline; cursor:pointer;">수정하기</span>
-        `;
+        return `<span class="modify-link" data-segid="${segid}" style="color:red; text-decoration:underline; cursor:pointer;">수정하기</span>`;
       });
+      replaced = replaced.replace(/\n/g, '<br>');
       return replaced;
     },
 
-    // HTML 이스케이프 함수
     escapeHtml(str) {
       return str.replace(/[<>&"]/g, c => {
         switch (c) {
@@ -132,7 +123,6 @@ createApp({
       });
     },
 
-    // 비디오 플레이어 초기화
     initVideoPlayer() {
       const container = document.getElementById("player");
       container.innerHTML = "";
@@ -145,7 +135,6 @@ createApp({
       this.player = videoEl;
     },
 
-    // 세그먼트 클릭: 영상 이동
     handleSegmentClick(segid, start) {
       const startTime = parseFloat(start) || 0;
       if (this.player) {
@@ -154,42 +143,70 @@ createApp({
       }
     },
 
-    // 수정 모달 열기: 기존 캡션/멤버 불러오기
+    // 단일 세그먼트 수정: 그룹이 아닌 경우
     handleModifyClick(segid) {
-      this.modifySegId = segid;
-      axios.get(`/segment/${segid}`)
+      if (segid.includes("~")) {
+        this.handleGroupModifyClick(segid);
+      } else {
+        this.modifySegId = segid;
+        axios.get(`/segment/${segid}`)
+          .then(res => {
+            if (res.data.success) {
+              const segData = res.data.data;
+              const finalCap = segData.manual_caption.trim() || segData.caption.trim();
+              this.originalCaption = finalCap;
+              this.modifyText = "";
+              let members = [];
+              segData.faces.forEach(f => {
+                if (f.member && !members.includes(f.member)) {
+                  members.push(f.member);
+                }
+              });
+              this.originalMembers = members;
+              this.updatedMembers = [...members];
+              this.memberInput = "";
+              this.showModifyModal = true;
+            } else {
+              alert("세그먼트 정보를 가져오지 못했습니다.");
+            }
+          })
+          .catch(err => {
+            console.error("Error fetching segment data:", err);
+            alert("세그먼트 정보를 가져오는 중 오류가 발생했습니다.");
+          });
+      }
+    },
+
+    // 그룹 수정: 여러 세그먼트가 묶여 있을 때 (예: "146~148")
+    handleGroupModifyClick(segidGroup) {
+      this.groupModifySegIds = segidGroup;
+      const segIdArray = segidGroup.split("~").map(id => parseInt(id.trim()));
+    
+      axios.post("/segment/group_info", { segment_ids: segIdArray })
         .then(res => {
           if (res.data.success) {
-            const segData = res.data.data;
-            const finalCap = segData.manual_caption.trim() || segData.caption.trim();
-            this.originalCaption = finalCap;
-            this.modifyText = "";
-            let members = [];
-            segData.faces.forEach(f => {
-              if (f.member && !members.includes(f.member)) {
-                members.push(f.member);
-              }
-            });
-            this.originalMembers = members;
-            this.updatedMembers = [...members];
-            this.memberInput = "";
-            this.showModifyModal = true;
+            // 백엔드에서 받아온 통합 캡션, 멤버 세팅
+            this.groupOriginalCaption = res.data.combined_caption;
+            this.groupModifyText = "";
+            this.groupOriginalMembers = res.data.combined_members;
+            this.groupUpdatedMembers = [...res.data.combined_members];
+            this.groupMemberInput = "";
+            this.showGroupModifyModal = true;
           } else {
-            alert("세그먼트 정보를 가져오지 못했습니다.");
+            alert("그룹 정보를 가져오지 못했습니다.");
           }
         })
         .catch(err => {
-          console.error("Error fetching segment data:", err);
-          alert("세그먼트 정보를 가져오는 중 오류가 발생했습니다.");
+          console.error("Error fetching group info:", err);
+          alert("그룹 정보를 가져오는 중 오류가 발생했습니다.");
         });
-    },
+    }
+    ,
 
-    // 수정 모달 닫기
     closeModal() {
       this.showModifyModal = false;
     },
 
-    // 수정 모달 '확인' 버튼: 수정 명령 전송
     applyModify() {
       const newCaption = this.modifyText.trim() || this.originalCaption;
       const membersString = this.updatedMembers.join(",");
@@ -217,7 +234,6 @@ createApp({
       this.showModifyModal = false;
     },
 
-    // 멤버 추가/삭제
     addMember() {
       const newMember = this.memberInput.trim();
       if (newMember && !this.updatedMembers.includes(newMember)) {
@@ -229,7 +245,39 @@ createApp({
       this.updatedMembers = this.updatedMembers.filter(x => x !== m);
     },
 
-    // 병합 모달
+    // 그룹 수정 모달 관련 메서드
+    closeGroupModifyModal() {
+      this.showGroupModifyModal = false;
+    },
+    addGroupMember() {
+      const newMember = this.groupMemberInput.trim();
+      if (newMember && !this.groupUpdatedMembers.includes(newMember)) {
+        this.groupUpdatedMembers.push(newMember);
+      }
+      this.groupMemberInput = "";
+    },
+    removeGroupMember(m) {
+      this.groupUpdatedMembers = this.groupUpdatedMembers.filter(x => x !== m);
+    },
+    applyGroupModify() {
+      const newCaption = this.groupModifyText.trim() || this.groupOriginalCaption;
+      const segIdArray = this.groupModifySegIds.split("~").map(id => id.trim());
+      axios.post("/segment/group_modify", {
+        segment_ids: segIdArray,
+        new_caption: newCaption,
+        new_members: this.groupUpdatedMembers
+      })
+      .then(res => {
+        alert(res.data.message);
+        this.showGroupModifyModal = false;
+      })
+      .catch(err => {
+        console.error("Error in group modify:", err);
+        alert("그룹 수정 중 오류가 발생했습니다.");
+      });
+    },
+
+    // 병합, 분할, 생성 모달 관련 (기존 그대로)
     openMergeModal() {
       this.mergeSegmentIds = "";
       this.mergeCaption = "";
@@ -257,7 +305,6 @@ createApp({
       });
     },
 
-    // 분할 모달
     openSplitModal() {
       this.splitSegmentId = "";
       this.splitTime = null;
@@ -285,7 +332,6 @@ createApp({
       });
     },
 
-    // 생성 모달
     openCreateModal() {
       this.createStart = null;
       this.createEnd = null;
@@ -313,7 +359,6 @@ createApp({
       });
     },
 
-    // "세그먼트" 메뉴 토글
     toggleSegmentMenu() {
       this.showSegmentMenu = !this.showSegmentMenu;
     }

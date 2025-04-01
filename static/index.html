@@ -26,8 +26,8 @@
       color: #fff; 
       cursor: pointer; 
       text-decoration: none; 
-      font-size: 16px; 
-      margin-left: auto; /* 오른쪽 정렬 느낌 */
+      font-size: 16px;
+      margin-left: auto;
     }
     .segment-trigger:hover { text-decoration: underline; }
     .segment-menu {
@@ -87,6 +87,7 @@
       margin-top: 10px; 
       height: 400px; 
       overflow-y: auto;
+      white-space: pre-wrap;
     }
     .chat-message { 
       margin-bottom: 10px; 
@@ -157,7 +158,6 @@
       #player-container { margin-right: 0; margin-bottom: 20px; }
     }
 
-    /* 추가: 채팅 모드 컨테이너 */
     .chat-mode-container {
       margin-top: 10px;
       width: 100%; 
@@ -195,7 +195,6 @@
         <div id="player"></div>
       </div>
       <div id="chat-container">
-
         <!-- 채팅 메시지 영역 -->
         <div id="chat-messages">
           <div v-if="chatMessages.length === 0">
@@ -237,7 +236,7 @@
           </button>
         </div>
 
-        <!-- 자막 + 멤버 수정 모달 -->
+        <!-- 단일 세그먼트 수정 모달 -->
         <div v-if="showModifyModal" class="modal-bg">
           <div class="modal">
             <h3>세그먼트 {{ modifySegId }} 수정</h3>
@@ -264,7 +263,34 @@
           </div>
         </div>
 
-        <!-- 병합 모달 -->
+        <!-- 그룹 수정 모달 -->
+        <div v-if="showGroupModifyModal" class="modal-bg">
+          <div class="modal">
+            <h3>그룹 수정: 세그먼트 {{ groupModifySegIds }}</h3>
+            <div>
+              <label>기존 통합 캡션:</label>
+              <p style="background:#f2f2f2; padding:5px; min-height:40px;">{{ groupOriginalCaption }}</p>
+            </div>
+            <label>새 통합 캡션 (비어있으면 기존 유지):</label>
+            <textarea v-model="groupModifyText" placeholder="새 자막을 입력..."></textarea>
+            <div style="margin-top:10px;">
+              <label>멤버 목록:</label>
+              <ul>
+                <li v-for="(m, index) in groupUpdatedMembers" :key="index">
+                  {{ m }} <button @click="removeGroupMember(m)">삭제</button>
+                </li>
+              </ul>
+              <input type="text" v-model="groupMemberInput" placeholder="멤버 이름" style="width:120px;" />
+              <button @click="addGroupMember">추가</button>
+            </div>
+            <div style="margin-top:10px; text-align:right;">
+              <button @click="applyGroupModify">전체 수정 적용</button>
+              <button @click="closeGroupModifyModal">취소</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 병합, 분할, 생성 모달 (기존 그대로) -->
         <div v-if="showMergeModal" class="modal-bg">
           <div class="modal">
             <h3>세그먼트 병합</h3>
@@ -279,7 +305,6 @@
           </div>
         </div>
 
-        <!-- 분할 모달 -->
         <div v-if="showSplitModal" class="modal-bg">
           <div class="modal">
             <h3>세그먼트 분할</h3>
@@ -298,7 +323,6 @@
           </div>
         </div>
 
-        <!-- 생성 모달 -->
         <div v-if="showCreateModal" class="modal-bg">
           <div class="modal">
             <h3>세그먼트 생성</h3>
@@ -316,7 +340,7 @@
         </div>
 
       </div> <!-- /#chat-container -->
-    </div>   <!-- /#app-container -->
+    </div> <!-- /#app-container -->
   </div> <!-- /#app -->
   <script src="/static/main.js"></script>
 </body>

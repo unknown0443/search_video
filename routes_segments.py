@@ -321,3 +321,59 @@ def get_segment_history(seg_id):
         })
 
     return jsonify({"success": True, "history": history_list})
+
+@segments_bp.route("/segment/group_info", methods=["POST"])
+def group_info():
+    data = request.get_json()
+    segment_ids = data.get("segment_ids", [])
+    if not segment_ids:
+        return jsonify({"success": False, "message": "No segment_ids provided"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # 세그먼트 조회
+    select_sql = """
+    SELECT id, caption, manual_caption, faces
+    FROM njz_segments
+    WHERE id = ANY(%s)
+    ORDER BY id
+    """
+    cur.execute(select_sql, (segment_ids,))
+    rows = cur.fetchall()
+
+    combined_caption = []
+    combined_members = set()
+    for row in rows:
+        seg_id = row[0]
+        auto_cap = row[1] or ""
+        manual_cap = row[2] or ""
+        faces_json = row[3] or "[]"
+        if isinstance(faces_json, str):
+            try:
+                faces_json = json.loads(faces_json)
+            except:
+                faces_json = []
+
+        # 최종 캡션은 manual_caption이 있으면 사용, 없으면 auto_cap
+        final_cap = manual_cap.strip() if manual_cap.strip() else auto_cap
+        combined_caption.append(final_cap)
+
+        # 멤버 추출
+        for f in faces_json:
+            if "member" in f and f["member"]:
+                combined_members.add(f["member"])
+
+    cur.close()
+    conn.close()
+
+    # 캡션 병합: 단순히 줄바꿈이나 "/" 등으로 이어붙이거나, 첫 번째만 사용해도 됨
+    # 여기서는 "/"로 결합 예시
+    merged_caption = " / ".join(combined_caption)
+
+    return jsonify({
+        "success": True,
+        "segment_ids": segment_ids,
+        "combined_caption": merged_caption,
+        "combined_members": list(combined_members),
+    })

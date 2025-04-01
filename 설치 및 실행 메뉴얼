@@ -1,0 +1,73 @@
+Python 3.10.11 버전을 Windows용으로 다운로드 받으시려면, 다음의 공식 다운로드 페이지를 이용하시면 됩니다:
+
+공식 다운로드 페이지: https://www.python.org/downloads/release/python-31011/
+
+✅  Git 설치하기 (Windows)
+▶️ 다운로드 링크:
+https://git-scm.com/download/win
+
+git clone https://github.com/kimmin1253/search_video.git
+cd search_video
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+(깃 클론으로 받아오고 그안에 가상환경 설치 그리고 pip리스트 install)
+
+✅  PostgreSQL 15 설치 (Windows)
+▶️ 다운로드 링크:
+https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+
+여기서 Windows용 PostgreSQL 15 선택해서 다운로드하세요.
+
+https://github.com/andreiramani/pgvector_pgsql_windows/releases/tag/0.7.3
+사이트 방문(비공식)
+zip파일을 다운로드 받은뒤에 압축푼 파일들
+다운로드한 파일 구성 확인:
+
+pgvector.control
+
+pgvector--0.7.3.sql
+
+vector.dll
+
+파일 복사 위치:
+
+pgvector.control 및 pgvector--0.7.3.sql 파일은 PostgreSQL의 share\extension 디렉토리에 복사합니다.
+
+예: C:\Program Files\PostgreSQL\15\share\extension\
+
+vector.dll 파일은 PostgreSQL의 lib 디렉토리에 복사합니다.
+
+예: C:\Program Files\PostgreSQL\15\lib\
+
+그리고 embedding(kpf-sbert).py실행해서 테이블 만들면서 임베딩입력
+
+postgre 환경변수 설정하고
+Windows 환경 변수에 경로 추가
+Windows 검색창에 "환경 변수" 검색 → 시스템 환경 변수 편집 클릭
+
+아래쪽에서 [환경 변수(N)...] 클릭
+
+사용자 변수 or 시스템 변수 중에서 Path 항목 선택 → 편집
+
+"새로 만들기" → 위 경로 추가:
+
+C:\Program Files\PostgreSQL\15\bin
+확인 → 확인 → 다시 터미널(cmd or PowerShell) 새로 열기
+
+psql 들어가서
+CREATE TABLE IF NOT EXISTS njz_segment_operations_history (
+    id SERIAL PRIMARY KEY,
+    operation_type TEXT,
+    segment_ids_before JSONB,
+    segment_ids_after JSONB,
+    old_captions JSONB,
+    new_captions JSONB,
+    old_faces JSONB,
+    new_faces JSONB,
+    created_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+다음명령문으로 테이블생성(수정사항테이블)
+
+

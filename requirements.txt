@@ -1,4 +1,4 @@
-Flask
+flask
 flask-cors
 psycopg2-binary
 sentence-transformers
@@ -24,3 +24,5 @@ webdriver-manager
 insightface
 bs4
 albumentations
+psycopg2
+google
