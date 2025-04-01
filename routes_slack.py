@@ -39,6 +39,7 @@ def slack_interactions():
                             },
                             "label": {"type": "plain_text", "text": "자막"}
                         }
+                        # (슬랙 모달에는 현재 캡션만 입력받지만, 나중에 멤버 선택도 추가할 수 있음)
                     ],
                     "submit": {"type": "plain_text", "text": "완료"}
                 }
@@ -58,7 +59,7 @@ def slack_interactions():
         else:
             return "", 200
 
-    # 모달 제출 이벤트 처리: 자막 수정 제출
+    # 모달 제출 이벤트 처리: 자막 수정 제출 (슬랙 모달로 입력된 경우)
     elif payload["type"] == "view_submission" and payload["view"]["callback_id"] == "modify_modal_submit":
         segment_id = payload["view"]["private_metadata"]
         new_caption = payload["view"]["state"]["values"]["caption_input_block"]["caption_input"]["value"]
@@ -93,13 +94,15 @@ def slack_interactions():
 def slack_video():
     user_text = request.form.get("text", "").strip()
 
-    # 1) "수정: 세그먼트ID=xx 내용=..." 명령 처리
+    # 1) "수정: 세그먼트ID=xx 내용=... 멤버=..." 명령 처리
     if user_text.startswith("수정:"):
-        override_pattern = r'^수정:\s*세그먼트ID=(\d+)\s*내용=(.*)'
+        override_pattern = r'^수정:\s*세그먼트ID=(\d+)\s*내용=(.*?)(?:\s+멤버=(.*))?$'
         match = re.match(override_pattern, user_text)
         if match:
             seg_id_str = match.group(1)
             override_text = match.group(2).strip()
+            members_text = match.group(3)  # 선택적으로 있을 수 있음
+
             try:
                 seg_id = int(seg_id_str)
             except ValueError:
@@ -108,33 +111,89 @@ def slack_video():
             if not seg_id or not override_text:
                 return jsonify({"response_type": "ephemeral", "text": "교정 명령 구문이 잘못되었습니다."})
 
-            # SBERT 임베딩 재계산
-            new_emb = search_model.encode(override_text)
-            new_emb_str = str(new_emb.tolist())
-
+            # 1) 수정 전 데이터 조회
             conn = get_db_connection()
             cur = conn.cursor()
-            update_sql = """
-            UPDATE njz_segments
-            SET manual_caption = %s,
-                embedding = %s
+            select_sql = """
+            SELECT caption, manual_caption, faces
+            FROM njz_segments
             WHERE id = %s
             """
-            cur.execute(update_sql, (override_text, new_emb_str, seg_id))
+            cur.execute(select_sql, (seg_id,))
+            row = cur.fetchone()
+            if not row:
+                cur.close()
+                conn.close()
+                return jsonify({"response_type": "ephemeral", "text": f"세그먼트 {seg_id}를 찾을 수 없습니다."})
+            old_auto_cap = row[0] or ""
+            old_manual_cap = row[1] or ""
+            old_faces = row[2] or "[]"
+            old_final_cap = old_manual_cap.strip() if old_manual_cap.strip() else old_auto_cap
+            if isinstance(old_faces, str):
+                try:
+                    old_faces = json.loads(old_faces)
+                except:
+                    old_faces = []
+
+            # 2) 새 faces 만들기 (멤버 정보)
+            if members_text:
+                members_list = [m.strip() for m in members_text.split(",") if m.strip()]
+                new_faces = json.dumps([{"member": m} for m in members_list])
+            else:
+                new_faces = json.dumps([])
+
+            # 3) DB 업데이트
+            new_emb = search_model.encode(override_text)
+            new_emb_str = str(new_emb.tolist())
+            if members_text:
+                update_sql = """
+                UPDATE njz_segments
+                SET manual_caption = %s,
+                    embedding = %s,
+                    faces = %s
+                WHERE id = %s
+                """
+                cur.execute(update_sql, (override_text, new_emb_str, new_faces, seg_id))
+            else:
+                update_sql = """
+                UPDATE njz_segments
+                SET manual_caption = %s,
+                    embedding = %s
+                WHERE id = %s
+                """
+                cur.execute(update_sql, (override_text, new_emb_str, seg_id))
+
+            # 4) 히스토리 기록
+            hist_sql = """
+            INSERT INTO njz_segment_operations_history
+            (operation_type, segment_ids_before, segment_ids_after,
+             old_captions, new_captions, old_faces, new_faces, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cur.execute(hist_sql, (
+                "update",
+                json.dumps([seg_id]),
+                json.dumps([seg_id]),
+                json.dumps([old_final_cap]),
+                json.dumps([override_text]),
+                json.dumps([old_faces]),
+                json.dumps([json.loads(new_faces)]),
+                "local_user"
+            ))
+
             conn.commit()
             cur.close()
             conn.close()
 
             return jsonify({
                 "response_type": "in_channel",
-                "text": f"세그먼트 {seg_id} 캡션이 수정되었습니다."
+                "text": f"세그먼트 {seg_id} 캡션 및 멤버 정보가 수정되었습니다."
             })
         else:
             return jsonify({"response_type": "ephemeral", "text": "수정 명령 형식이 올바르지 않습니다."})
 
-    # 2) 수정 명령이 아니면, 검색 로직 수행
+    # 2) 수정 명령이 아닐 경우, 검색 로직 수행
     else:
-        # SBERT 임베딩 검색
         user_emb = search_model.encode(user_text)
         user_emb_str = str(user_emb.tolist())
 
@@ -164,7 +223,7 @@ def slack_video():
             encoded_query = quote_plus(user_text)
             for row in rows:
                 seg_id = row[0]
-                # GIF 파일이 존재하는 세그먼트만 처리
+                # GIF 파일이 존재하는 세그먼트만 처리 (예: 272 이하)
                 if seg_id > 272:
                     continue
 
@@ -184,7 +243,7 @@ def slack_video():
                 }
                 image_block = {
                     "type": "image",
-                    "image_url": f"https://example.com/gif/output_segment_{seg_id}.gif",
+                    "image_url": f"https://94a6-58-72-151-123.ngrok-free.app/gif/output_segment_{seg_id}.gif",
                     "alt_text": f"세그먼트 {seg_id} GIF"
                 }
                 actions_block = {
@@ -193,7 +252,7 @@ def slack_video():
                         {
                             "type": "button",
                             "text": {"type": "plain_text", "text": "영상 보러가기"},
-                            "url": f"https://example.com/video_player?t={start_time}"
+                            "url": f"https://94a6-58-72-151-123.ngrok-free.app/video_player?t={start_time}"
                         },
                         {
                             "type": "button",
@@ -204,7 +263,7 @@ def slack_video():
                         {
                             "type": "button",
                             "text": {"type": "plain_text", "text": "Edit in Web"},
-                            "url": f"https://example.com/?q={encoded_query}"
+                            "url": f"https://94a6-58-72-151-123.ngrok-free.app/?q={encoded_query}"
                         }
                     ]
                 }
