@@ -5,8 +5,8 @@ from sentence_transformers import SentenceTransformer
 # 1. 모델 로드 (Hugging Face 모델)
 model = SentenceTransformer("bongsoo/kpf-sbert-128d-v1")
 
-# 2. JSON 로드
-json_path = "data/timeline_merged_njz.json"  # 파일 경로 확인
+# 2. JSON 데이터 불러오기 (combined metadata)
+json_path = "data/combined_metadata.json"
 with open(json_path, "r", encoding="utf-8") as f:
     combined_data = json.load(f)
 
@@ -54,28 +54,24 @@ DO UPDATE SET
 # 6. 데이터 처리 및 삽입
 for seg in combined_data:
     video_id = seg.get("video_id", "FuJ1RiLoq-M")
+    # combined metadata는 1초 단위이므로, timestamp를 시작시간으로 사용하고 종료시간은 start_time + 1초
+    timestamp = seg.get("timestamp", 0)
+    start_time = float(timestamp)
+    end_time = start_time + 1.0
 
-    # 🔁 time_slot → start_time, end_time 추출
-    time_slot = seg.get("time_slot", "")
-    if "-" in time_slot:
-        start_str, rest = time_slot.split("-", 1)
-        end_str = rest.split()[0]
-        start_time = float(start_str.strip())
-        end_time = float(end_str.strip())
-    else:
-        start_time = 0.0
-        end_time = 0.0
-
-    caption = seg.get("caption", seg.get("combined_caption", ""))
+    caption = seg.get("caption", "")
+    # faces는 combined metadata에서 이미 여러 얼굴 정보를 리스트로 포함하고 있음
     faces = seg.get("faces", [])
     faces_str = json.dumps(faces, ensure_ascii=False)
+
+    # 캡션 임베딩 계산 (128차원 벡터)
     embedding = model.encode(caption)
     embedding_str = str(embedding.tolist())
 
     cur.execute(insert_sql, (video_id, start_time, end_time, caption, faces_str, embedding_str))
     conn.commit()
 
-# 7. 마무리
+# 7. 연결 종료
 cur.close()
 conn.close()
 

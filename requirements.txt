@@ -26,3 +26,7 @@ bs4
 albumentations
 psycopg2
 google
+imageio
+insightface
+opencv-python
+onnxruntime

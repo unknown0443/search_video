@@ -1,42 +1,41 @@
-import cv2
+import imageio
 import os
 
-# 영상 파일 경로 (프로젝트 루트에 있음)
-video_file = "FuJ1RiLoq-M.mp4"
+# 영상 파일 경로 (프로젝트 루트 기준)
+video_path = "FuJ1RiLoq-M.mp4"
 
-# 추출한 프레임들을 저장할 폴더 (프로젝트 루트/FuJ1RiLoq-M)
-output_folder = "FuJ1RiLoq-M"
-os.makedirs(output_folder, exist_ok=True)
+# 영상 읽기: ffmpeg backend 사용
+reader = imageio.get_reader(video_path, 'ffmpeg')
+meta = reader.get_meta_data()
 
-# 영상 열기
-cap = cv2.VideoCapture(video_file)
-if not cap.isOpened():
-    print("Error: Could not open video file.")
-    exit(1)
+# FPS와 영상 길이(초)를 가져옴
+fps = meta.get('fps', 30)  # fps 정보가 없으면 기본값 30 사용
+duration = meta.get('duration', None)
+if duration is None:
+    # duration 정보가 없으면, 총 프레임 수를 이용해 계산
+    nframes = reader.count_frames()
+    duration = nframes / fps
 
-# 영상의 FPS를 가져옴
-fps = cap.get(cv2.CAP_PROP_FPS)
-# 초당 1프레임으로 추출하기 위해 프레임 간격은 영상의 FPS 값(반올림)
-frame_interval = int(round(fps))
-print(f"Original FPS: {fps:.2f}, Frame interval for 1fps extraction: {frame_interval}")
+print(f"Video FPS: {fps}")
+print(f"Video duration: {duration:.2f} seconds")
 
-frame_count = 0       # 전체 프레임 카운트
-saved_frame_count = 0 # 저장된 프레임 번호 (1부터 시작)
+# 추출된 프레임 저장 폴더 생성
+output_dir = "extracted_frames"
+os.makedirs(output_dir, exist_ok=True)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    # 매 frame_interval 번째 프레임 저장 (초당 1프레임)
-    if frame_count % frame_interval == 0:
-        saved_frame_count += 1
-        # 파일명: FuJ1RiLoq-M_frame_0001.jpg, FuJ1RiLoq-M_frame_0002.jpg, ...
-        filename = os.path.join(output_folder, f"FuJ1RiLoq-M_frame_{saved_frame_count:04d}.jpg")
-        cv2.imwrite(filename, frame)
-        print(f"Saved frame {saved_frame_count} (frame count {frame_count})")
+# 0초부터 영상 길이까지, 정수 초 단위로 프레임 추출
+for sec in range(int(duration)):
+    # 해당 초에 해당하는 프레임 인덱스 계산 (예: sec 0 -> 0, sec 1 -> int(fps), ...)
+    frame_index = int(sec * fps)
+    try:
+        frame = reader.get_data(frame_index)
+    except Exception as e:
+        print(f"Failed to get frame at {sec} sec (frame {frame_index}): {e}")
+        continue
     
-    frame_count += 1
+    # 저장 파일명: 예) frame_0000.png, frame_0001.png, ...
+    output_file = os.path.join(output_dir, f"frame_{sec:04d}.png")
+    imageio.imwrite(output_file, frame)
+    print(f"Extracted frame at {sec} second -> {output_file}")
 
-cap.release()
-print(f"Extraction complete: {saved_frame_count} frames saved in '{output_folder}' folder.")
+print("모든 프레임 추출 완료.")

@@ -224,8 +224,8 @@ def unified_chat():
 
         return jsonify({"response": chat_response})
 
-    # ----------------------------------
-    # 3) 기본 검색 로직 (우선순위 및 그룹화 적용)
+    #  # ----------------------------------
+    # 3) 기본 검색 로직 (우선순위 적용, 그룹화 제거)
     # ----------------------------------
     else:
         user_emb = search_model.encode(user_msg)
@@ -247,6 +247,8 @@ def unified_chat():
         cur.close()
         conn.close()
 
+        # 각 세그먼트에 대해 수정된 캡션(manual_caption)이 있으면 사용, 없으면 원본 캡션을 사용하며,
+        # faces.member 유무에 따라 우선순위(priority)를 부여
         segments = []
         for row in rows:
             seg_id = row[0]
@@ -278,58 +280,26 @@ def unified_chat():
                 "priority": priority
             })
 
+        # 우선순위와 유사도(distance)를 기준으로 정렬
         segments = sorted(segments, key=lambda s: (s["priority"], s["dist"]))
 
-        groups = {}
-        for seg in segments:
-            key = (seg["video_id"], seg["cap"])
-            if key not in groups:
-                groups[key] = {
-                    "ids": [seg["id"]],
-                    "start": seg["start"],
-                    "end": seg["end"],
-                    "cap": seg["cap"],
-                    "members": set(seg["members"]),
-                    "dist": seg["dist"]
-                }
-            else:
-                groups[key]["ids"].append(seg["id"])
-                groups[key]["start"] = min(groups[key]["start"], seg["start"])
-                groups[key]["end"] = max(groups[key]["end"], seg["end"])
-                groups[key]["members"].update(seg["members"])
-                groups[key]["dist"] = min(groups[key]["dist"], seg["dist"])
-
-        grouped_list = []
-        for (video_id, cap), group in groups.items():
-            id_range = f"{group['ids'][0]}" if len(group["ids"]) == 1 else f"{group['ids'][0]}~{group['ids'][-1]}"
-            grouped_list.append({
-                "id_range": id_range,
-                "start": group["start"],
-                "end": group["end"],
-                "cap": group["cap"],
-                "members": sorted(list(group["members"])),
-                "dist": group["dist"]
-            })
-
-        grouped_list = sorted(grouped_list, key=lambda g: g["dist"])
-
-        if not grouped_list:
+        # 그룹화 코드를 제거하고, 각 세그먼트를 개별 결과로 만듦
+        if not segments:
             relevant_info = "DB에서 검색 결과가 없습니다.\n"
         else:
             relevant_info = ""
-            for group in grouped_list:
-                start_hms = format_hhmmss(group["start"])
-                end_hms = format_hhmmss(group["end"])
-                cap = group["cap"]
-                members = group["members"]
+            for seg in segments:
+                start_hms = format_hhmmss(seg["start"])
+                end_hms = format_hhmmss(seg["end"])
+                cap = seg["cap"]
+                members = seg["members"]
                 face_line = "등장인물: " + ", ".join(members) if members else "등장인물: 없음"
-                id_range = group["id_range"]
                 relevant_info += (
-                    f"[세그먼트ID={id_range} (start_sec={group['start']}, end_sec={group['end']})]\n"
+                    f"[세그먼트ID={seg['id']} (start_sec={seg['start']}, end_sec={seg['end']})]\n"
                     f"{start_hms} ~ {end_hms}\n"
                     f"캡션: \"{cap}\"\n"
                     f"{face_line}\n"
-                    f"(dist={group['dist']:.2f}) [수정하기={id_range}]\n\n"
+                    f"(dist={seg['dist']:.2f}) [수정하기={seg['id']}]\n\n"
                 )
 
         prompt = f"""
@@ -363,7 +333,6 @@ Context:
             chat_response = "오류가 발생했습니다."
 
         return jsonify({"response": chat_response})
-
 # ----------------------------------
 # 그룹 수정 API
 # ----------------------------------
