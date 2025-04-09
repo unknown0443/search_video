@@ -55,12 +55,10 @@ createApp({
     // 채팅 모드 전환 함수
     setChatMode(mode) {
       this.chatMode = mode;
-      if (mode === "question") {
-        this.chatInput = "질문: ";
-      } else {
-        this.chatInput = "";
-      }
-    },
+      // 질문 모드일 때 접두어를 붙이지 않고, 기존 입력값 초기화
+      this.chatInput = "";
+    }
+    ,
 
     // 채팅 전송 (질문 모드인 경우 접두어 추가)
     sendChat() {
@@ -137,11 +135,14 @@ createApp({
 
     handleSegmentClick(segid, start) {
       const startTime = parseFloat(start) || 0;
+      // 1초 전으로 이동 (단, 0보다 작으면 0으로)
+      const targetTime = startTime > 1 ? startTime - 1 : 0;
       if (this.player) {
-        this.player.currentTime = startTime;
+        this.player.currentTime = targetTime;
         this.player.play();
       }
-    },
+    }
+    ,
 
     // 단일 세그먼트 수정: 그룹이 아닌 경우
     handleModifyClick(segid) {
