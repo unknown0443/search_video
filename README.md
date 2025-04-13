@@ -32,7 +32,7 @@
 
 ### 필수 환경
 - **Python:** 3.10.11  
-- **PostgreSQL:**
+- **PostgreSQL:** 15
 - **ngrok:** [ngrok 다운로드](https://ngrok.com/)
 
 ### 설치 순서
