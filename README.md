@@ -15,6 +15,18 @@
 6. [TODO / Future Plans](#todo--future-plans)
 
 ---
+
+## 프로젝트 개요
+
+- **핵심 기능**  
+  - **Arcface** 기반 인물 인식 (Buffalo 모델 사용) 및 인물구별 학습  
+  - **BLIP2/EILEV** 모델로 영상 캡션 생성  
+  - **kpf-sbert-128d-v1** 모델을 통한 한글/영어 임베딩 및 검색  
+  - **Gemini LLM**(Google Generative AI)을 이용해 검색 결과를 한국어로 번역·요약  
+  - **Slack 연동**을 통한 검색 결과 공유 및 편집 기능  
+  - **수정 기능**: 특정 구간(세그먼트) 자막, 멤버 정보 업데이트 및 세그먼트의 생성, 병합, 분할 처리
+
+---
 # Stacks
 
 ## 🖥️ Language & Backend(Server)
@@ -51,17 +63,6 @@
 ![venv](https://img.shields.io/badge/venv-3c3c3c?style=for-the-badge)
 ![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
 ![Jupyter](https://img.shields.io/badge/Jupyter-F37626?style=for-the-badge&logo=jupyter&logoColor=white)
-
----
-## 프로젝트 개요
-
-- **핵심 기능**  
-  - **Arcface** 기반 인물 인식 (Buffalo 모델 사용) 및 인물구별 학습  
-  - **BLIP2/EILEV** 모델로 영상 캡션 생성  
-  - **kpf-sbert-128d-v1** 모델을 통한 한글/영어 임베딩 및 검색  
-  - **Gemini LLM**(Google Generative AI)을 이용해 검색 결과를 한국어로 번역·요약  
-  - **Slack 연동**을 통한 검색 결과 공유 및 편집 기능  
-  - **수정 기능**: 특정 구간(세그먼트) 자막, 멤버 정보 업데이트 및 세그먼트의 생성, 병합, 분할 처리
 
 ---
 
